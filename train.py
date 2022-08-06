@@ -1,8 +1,8 @@
+import logging
 import math
-import os
 import sys
+from pathlib import Path
 
-import numpy as np
 import torch
 import torchvision
 from bs4 import BeautifulSoup
@@ -14,6 +14,8 @@ from torchvision.models.detection.faster_rcnn import (
 )
 
 from utils import MetricLogger, SmoothedValue, collate_fn, reduce_dict
+
+logging.basicConfig(level=logging.INFO)
 
 
 def generate_box(obj):
@@ -34,8 +36,8 @@ def generate_label(obj):
     return 0
 
 
-def generate_target(image_id, fname):
-    with open(fname, 'r') as f:
+def generate_target(image_id: int, fpath: Path):
+    with fpath.open('r') as f:
         data = f.read()
         soup = BeautifulSoup(data, 'xml')
         objects = soup.find_all('object')
@@ -62,20 +64,17 @@ def generate_target(image_id, fname):
 
 class FaceMaskDataset(torch.utils.data.Dataset):
     def __init__(self, root, transforms=None):
-        self.root = root
+        self.root = Path(root)
         self.transforms = transforms
         # load all image files, sorting them to
         # ensure that they are aligned
-        self.imgs = list(sorted(os.listdir(os.path.join(root, "images"))))
-        self.anns = list(sorted(os.listdir(os.path.join(root, "annotations"))))
+        self.imgs = sorted((self.root / 'images').glob('*.png'))
+        self.anns = sorted((self.root / 'annotations').glob('*.xml'))
 
     def __getitem__(self, idx):
-        # load images and masks
-        img_path = os.path.join(self.root, "images", self.imgs[idx])
-        ann_path = os.path.join(self.root, "annotations", self.anns[idx])
-        img = Image.open(img_path).convert("RGB")
-
-        target = generate_target(image_id=idx, fname=ann_path)
+        """load images and targets"""
+        img = Image.open(self.imgs[idx]).convert("RGB")
+        target = generate_target(image_id=idx, fpath=self.anns[idx])
 
         if self.transforms is not None:
             img = self.transforms(img)
@@ -185,9 +184,10 @@ params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
 # and a learning rate scheduler
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
-# let's train it for 10 epochs
-num_epochs = 1
 
+# let's train it for 10 epochs
+logging.info('start training')
+num_epochs = 1
 for epoch in range(num_epochs):
     # train for one epoch, printing every 10 iterations
     train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
