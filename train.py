@@ -138,18 +138,3 @@ model = LitFasterRCNN(generate_faster_rcnn_model(num_classes=3))
 # train model
 trainer = pl.Trainer(accelerator='cpu')
 trainer.fit(model=model, train_dataloaders=train_loader)
-
-
-# lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
-
-# logging.info('start training')
-# num_epochs = 1
-# for epoch in range(num_epochs):
-#     # train for one epoch, printing every 10 iterations
-#     train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
-#     # update the learning rate
-#     lr_scheduler.step()
-#     # evaluate on the test dataset
-#     # evaluate(model, data_loader_test, device=device)
-
-# print("That's it!")
