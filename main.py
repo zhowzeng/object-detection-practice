@@ -105,6 +105,23 @@ class LitFasterRCNN(pl.LightningModule):
         losses = sum(loss for loss in loss_dict.values())
         return losses
 
+    def validation_step(self, batch, batch_idx):
+        self.model.train()  # in order to return losses rather than detections
+        images, targets = batch
+        images = list(image for image in images)
+        targets = [{k: v for k, v in t.items()} for t in targets]
+        loss_dict = self.model(images, targets)
+        losses = sum(loss for loss in loss_dict.values())
+        self.log("val_loss", losses, batch_size=len(images))
+
+    def test_step(self, batch, batch_idx):
+        images, targets = batch
+        images = list(image for image in images)
+        targets = [{k: v for k, v in t.items()} for t in targets]
+        loss_dict = self.model(images, targets)
+        losses = sum(loss for loss in loss_dict.values())
+        self.log("test_loss", losses, batch_size=len(images))
+
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
         return optimizer
@@ -117,24 +134,31 @@ def generate_faster_rcnn_model(num_classes):
     return model
 
 
-dataset = FaceMaskDataset('./data/face-mask/', get_transform(train=True))
-dataset_test = FaceMaskDataset('./data/face-mask/', get_transform(train=False))
+train_dataset = FaceMaskDataset('./data/face-mask/', get_transform(train=True))
+val_dataset = FaceMaskDataset('./data/face-mask/', get_transform(train=True))
+test_dataset = FaceMaskDataset('./data/face-mask/', get_transform(train=False))
 
-indices = torch.randperm(len(dataset)).tolist()
-dataset = torch.utils.data.Subset(dataset, indices[:-50])
-dataset_test = torch.utils.data.Subset(dataset_test, indices[-50:])
+indices = torch.randperm(len(train_dataset)).tolist()
+train_dataset = torch.utils.data.Subset(train_dataset, indices[:100])
+val_dataset = torch.utils.data.Subset(val_dataset, indices[-100:-50])
+test_dataset = torch.utils.data.Subset(test_dataset, indices[-50:])
 
 train_loader = torch.utils.data.DataLoader(
-    dataset, batch_size=2, shuffle=True, num_workers=4, collate_fn=collate_fn
+    train_dataset, batch_size=2, shuffle=True, num_workers=4, collate_fn=collate_fn
 )
-
+val_loader = torch.utils.data.DataLoader(
+    val_dataset, batch_size=2, shuffle=False, num_workers=4, collate_fn=collate_fn
+)
 test_loader = torch.utils.data.DataLoader(
-    dataset_test, batch_size=1, shuffle=False, num_workers=4, collate_fn=collate_fn
+    test_dataset, batch_size=2, shuffle=False, num_workers=4, collate_fn=collate_fn
 )
 
 # model
 model = LitFasterRCNN(generate_faster_rcnn_model(num_classes=3))
 
 # train model
-trainer = pl.Trainer(accelerator='cpu')
-trainer.fit(model=model, train_dataloaders=train_loader)
+trainer = pl.Trainer(accelerator='cpu', max_epochs=1)
+trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+
+# test model
+trainer.test(dataloaders=test_loader)
