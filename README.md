@@ -1,5 +1,11 @@
 # object-detection-practice
 
-## Dataset
+### Dataset
 
-Download 2017 MS COCO https://cocodataset.org/#download to `/data/coco`.
+<https://www.kaggle.com/datasets/andrewmvd/face-mask-detection>
+
+### TensorBoard
+
+```bash
+tensorboard --logdir .
+```
