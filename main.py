@@ -31,7 +31,7 @@ if __name__ == '__main__':
     test_dataset = FaceMaskDataset('./data/face-mask/', get_transform(train=False))
 
     indices = torch.randperm(len(train_dataset)).tolist()
-    train_dataset = torch.utils.data.Subset(train_dataset, indices[:100])
+    train_dataset = torch.utils.data.Subset(train_dataset, indices[:-100])
     val_dataset = torch.utils.data.Subset(val_dataset, indices[-100:-50])
     test_dataset = torch.utils.data.Subset(test_dataset, indices[-50:])
 
