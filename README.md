@@ -16,5 +16,9 @@ pip install -r requirements.txt
 ### TensorBoard
 
 ```bash
-tensorboard --logdir .
+tensorboard --logdir=lightning_logs/
+
+# in notebook
+%reload_ext tensorboard
+%tensorboard --logdir=lightning_logs/
 ```
