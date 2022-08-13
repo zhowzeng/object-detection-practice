@@ -5,10 +5,20 @@ from torchvision.models.detection import faster_rcnn, fasterrcnn_resnet50_fpn
 
 
 class LitFasterRCNN(pl.LightningModule):
-    def __init__(self, faster_rcnn):
+    def __init__(self, args, model):
         super().__init__()
-        self.save_hyperparameters(ignore=['faster_rcnn'])
-        self.model = faster_rcnn
+        self.save_hyperparameters(ignore=['model'])
+        self.learning_rate = args.learning_rate
+        self.model = model
+
+        # With the input array, the summary table will include the input and output layer dimensions:
+        # self.example_input_array = torch.Tensor(32, 1, 28, 28)
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("LitFasterRCNN")
+        parser.add_argument("--learning_rate", type=float, default=5e-3)
+        return parent_parser
 
     def training_step(self, batch, batch_idx):
         images, targets = batch
@@ -38,7 +48,9 @@ class LitFasterRCNN(pl.LightningModule):
         self.log("test_loss", losses, batch_size=len(images))
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
+        optimizer = torch.optim.SGD(
+            self.parameters(), lr=self.learning_rate, momentum=0.9, weight_decay=0.0005
+        )
         return optimizer
 
 

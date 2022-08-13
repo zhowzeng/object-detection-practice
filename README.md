@@ -6,8 +6,7 @@
 pip install -U pip
 pip install -r requirements.txt
 
-# for pytorch
-https://pytorch.org/get-started/locally/
+# for pytorch installation, see https://pytorch.org/get-started/locally/
 ```
 
 ### Dataset

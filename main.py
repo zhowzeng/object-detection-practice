@@ -1,4 +1,5 @@
 import logging
+from argparse import ArgumentParser
 
 import pytorch_lightning as pl
 import torch
@@ -10,6 +11,20 @@ logging.basicConfig(level=logging.INFO)
 
 
 if __name__ == '__main__':
+    parser = ArgumentParser()
+
+    # add PROGRAM level args
+    parser.add_argument("--batch_size", type=int, default=2)
+    parser.add_argument("--num_workers", type=int, default=8)
+
+    # add model specific args
+    parser = LitFasterRCNN.add_model_specific_args(parser)
+
+    # add all the available trainer options to argparse
+    # ie: now --accelerator --devices --num_nodes ... --fast_dev_run all work in the cli
+    parser = pl.Trainer.add_argparse_args(parser)
+
+    args = parser.parse_args()
 
     train_dataset = FaceMaskDataset('./data/face-mask/', get_transform(train=True))
     val_dataset = FaceMaskDataset('./data/face-mask/', get_transform(train=True))
@@ -23,26 +38,41 @@ if __name__ == '__main__':
     logging.info(f'{len(train_dataset)=}; {len(val_dataset)=}; {len(test_dataset)=}')
 
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=2, shuffle=True, num_workers=8, collate_fn=collate_fn
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_workers,
+        collate_fn=collate_fn,
     )
     val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=2, shuffle=False, num_workers=8, collate_fn=collate_fn
+        val_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        collate_fn=collate_fn,
     )
     test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=2, shuffle=False, num_workers=8, collate_fn=collate_fn
+        test_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        collate_fn=collate_fn,
     )
 
     logging.info(f'{len(train_loader)=}; {len(val_loader)=}; {len(test_loader)=}')
 
     # model
-    model = LitFasterRCNN(generate_faster_rcnn_model(num_classes=3))
+    model = LitFasterRCNN(args, model=generate_faster_rcnn_model(num_classes=3))
 
     # train model
-    trainer = pl.Trainer(
-        accelerator='cpu',
-        max_epochs=5,
+    trainer = pl.Trainer.from_argparse_args(
+        args,
         default_root_dir='./checkpoints/',
-        callbacks=[pl.callbacks.early_stopping.EarlyStopping(monitor="val_loss", mode="min")],
+        profiler='simple',
+        callbacks=[
+            pl.callbacks.early_stopping.EarlyStopping(monitor="val_loss", mode="min"),
+            pl.callbacks.DeviceStatsMonitor(),
+        ],
     )
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
